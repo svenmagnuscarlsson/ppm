@@ -724,11 +724,47 @@
             opacity: 0.5;
         }
 
+        /* Toast notification styles */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--primary);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            z-index: 2000;
+            opacity: 0;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            max-width: 400px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .toast.error {
+            background: var(--danger);
+        }
+
+        .toast.success {
+            background: var(--success);
+        }
+
+        .toast.warning {
+            background: var(--warning);
+        }
+
         @media (max-width: 768px) {
             .modal-info-grid {
                 grid-template-columns: 1fr;
             }
-            
+
             .stats-grid {
                 grid-template-columns: 1fr;
             }
@@ -745,6 +781,11 @@
 
             .search-input-wrapper {
                 width: 100%;
+            }
+
+            .toast {
+                bottom: 1rem;
+                max-width: calc(100% - 2rem);
             }
         }
     </style>
@@ -785,10 +826,10 @@
             <div class="chart-header">
                 <h2 class="chart-title">Topp 30 Fonder - Avkastning</h2>
                 <div class="filter-group">
-                    <button class="filter-btn active" onclick="updatePeriod('12m', event)">12 månader</button>
-                    <button class="filter-btn" onclick="updatePeriod('6m', event)">6 månader</button>
-                    <button class="filter-btn" onclick="updatePeriod('3m', event)">3 månader</button>
-                    <button class="filter-btn" onclick="updatePeriod('5y', event)">5 år snitt</button>
+                    <button class="filter-btn active" data-period="12m">12 månader</button>
+                    <button class="filter-btn" data-period="6m">6 månader</button>
+                    <button class="filter-btn" data-period="3m">3 månader</button>
+                    <button class="filter-btn" data-period="5y">5 år snitt</button>
                 </div>
             </div>
             <div class="chart-container">
@@ -848,15 +889,15 @@
                         <circle cx="11" cy="11" r="8"></circle>
                         <path d="m21 21-4.35-4.35"></path>
                     </svg>
-                    <input type="text" class="search-input" id="fundSearch" placeholder="Sök fond..." oninput="filterTable()">
+                    <input type="text" class="search-input" id="fundSearch" placeholder="Sök fond...">
                 </div>
                 <div class="category-filters">
-                    <button class="category-filter-btn active" data-category="all" onclick="filterByCategory('all', this)">Alla</button>
-                    <button class="category-filter-btn" data-category="gold" onclick="filterByCategory('gold', this)">Guld</button>
-                    <button class="category-filter-btn" data-category="biotech" onclick="filterByCategory('biotech', this)">Biotek</button>
-                    <button class="category-filter-btn" data-category="sweden" onclick="filterByCategory('sweden', this)">Sverige</button>
-                    <button class="category-filter-btn" data-category="emerging" onclick="filterByCategory('emerging', this)">Tillväxt</button>
-                    <button class="category-filter-btn" data-category="global" onclick="filterByCategory('global', this)">Global</button>
+                    <button class="category-filter-btn active" data-category="all">Alla</button>
+                    <button class="category-filter-btn" data-category="gold">Guld</button>
+                    <button class="category-filter-btn" data-category="biotech">Biotek</button>
+                    <button class="category-filter-btn" data-category="sweden">Sverige</button>
+                    <button class="category-filter-btn" data-category="emerging">Tillväxt</button>
+                    <button class="category-filter-btn" data-category="global">Global</button>
                 </div>
             </div>
 
@@ -893,20 +934,20 @@
             <span>fonder valda för jämförelse</span>
         </div>
         <div class="comparison-actions">
-            <button class="comparison-btn secondary" onclick="clearComparison()">Rensa</button>
-            <button class="comparison-btn primary" onclick="showComparison()">Jämför nu</button>
+            <button class="comparison-btn secondary" id="clearComparisonBtn">Rensa</button>
+            <button class="comparison-btn primary" id="showComparisonBtn">Jämför nu</button>
         </div>
     </div>
 
     <!-- Feature 5: Fund detail modal -->
-    <div class="modal-overlay" id="fundModal" onclick="closeModal(event)">
-        <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-overlay" id="fundModal">
+        <div class="modal">
             <div class="modal-header">
                 <div>
                     <h3 class="modal-title" id="modalFundName">Fondnamn</h3>
                     <p class="modal-subtitle" id="modalCategory">Kategori</p>
                 </div>
-                <button class="modal-close" onclick="closeFundModal()">&times;</button>
+                <button class="modal-close" id="closeFundModalBtn">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="modal-stats" id="modalStats">
@@ -931,14 +972,14 @@
     </div>
 
     <!-- Feature 3: Comparison modal -->
-    <div class="modal-overlay comparison-modal" id="comparisonModal" onclick="closeComparisonModal(event)">
-        <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-overlay comparison-modal" id="comparisonModal">
+        <div class="modal">
             <div class="modal-header">
                 <div>
                     <h3 class="modal-title">Fondjämförelse</h3>
                     <p class="modal-subtitle" id="comparisonSubtitle">Jämför valda fonder</p>
                 </div>
-                <button class="modal-close" onclick="closeComparisonModal()">&times;</button>
+                <button class="modal-close" id="closeComparisonModalBtn">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="comparison-chart-container">
@@ -953,196 +994,281 @@
     </div>
 
     <script>
-        const fundData = [
-            {name: "CPR Invest Global Gold Mines A2", cat: "gold", m3: 12.6, m6: 61.4, m12: 116.9, y5: 22.1},
-            {name: "BlackRock - World Gold A2", cat: "gold", m3: 15.4, m6: 63.4, m12: 116.7, y5: 21.0},
-            {name: "Allianz Global Metals and Mining A", cat: "gold", m3: 13.2, m6: 43.5, m12: 47.4, y5: 14.8},
-            {name: "BlackRock - World Mining A2", cat: "gold", m3: 12.1, m6: 43.0, m12: 42.7, y5: 14.7},
-            {name: "Franklin Biotechnology Discovery Fund", cat: "biotech", m3: 20.0, m6: 54.5, m12: 27.6, y5: 8.1},
-            {name: "Baring Latin America A", cat: "emerging", m3: 5.8, m6: 13.9, m12: 27.3, y5: 9.7},
-            {name: "Handelsbanken Latinamerika Impact Tema A1", cat: "emerging", m3: 3.7, m6: 9.4, m12: 27.1, y5: 8.1},
-            {name: "Amundi Funds Latin America Equity A2", cat: "emerging", m3: 3.5, m6: 9.6, m12: 27.1, y5: 10.7},
-            {name: "Pictet Biotech R", cat: "biotech", m3: 19.3, m6: 52.8, m12: 25.9, y5: 6.8},
-            {name: "SEB Sverigefond", cat: "sweden", m3: 8.5, m6: 15.8, m12: 23.3, y5: 12.5},
-            {name: "Evli Finland Select Placeringsfonden B", cat: "sweden", m3: 7.8, m6: 11.3, m12: 22.7, y5: 7.9},
-            {name: "Handelsbanken Hållbar Energi A1", cat: "global", m3: 6.8, m6: 31.4, m12: 22.4, y5: -2.4},
-            {name: "BlackRock - World Financials A2", cat: "global", m3: 8.6, m6: 13.5, m12: 22.2, y5: 20.4},
-            {name: "S-Banken Fenno Aktie A", cat: "sweden", m3: 8.1, m6: 9.7, m12: 21.6, y5: 7.5},
-            {name: "Aktiespararna Direktavkastning", cat: "sweden", m3: 6.5, m6: 12.1, m12: 21.3, y5: 10.6},
-            {name: "SKAGEN Kon-Tiki F", cat: "emerging", m3: 5.2, m6: 14.3, m12: 21.2, y5: 7.3},
-            {name: "Aktia Capital Placeringsfond B", cat: "sweden", m3: 7.9, m6: 10.7, m12: 20.8, y5: 5.8},
-            {name: "Holberg Norge", cat: "sweden", m3: 4.1, m6: 7.7, m12: 20.4, y5: 13.8},
-            {name: "Lannebo Sverige Plus", cat: "sweden", m3: 10.7, m6: 18.4, m12: 20.3, y5: 12.4},
-            {name: "Avanza Zero", cat: "sweden", m3: 7.2, m6: 16.9, m12: 20.2, y5: 12.3},
-            {name: "Lannebo Sverige", cat: "sweden", m3: 10.5, m6: 16.6, m12: 19.9, y5: 12.1},
-            {name: "Templeton Emerging Markets Fund A", cat: "emerging", m3: 3.4, m6: 14.6, m12: 19.6, y5: 7.1},
-            {name: "Nordea Globala Tillväxtmarknader", cat: "emerging", m3: 6.4, m6: 17.0, m12: 18.8, y5: 8.5},
-            {name: "Aktiespararna Topp Sverige", cat: "sweden", m3: 8.8, m6: 18.0, m12: 18.8, y5: 12.0},
-            {name: "SEB Nordenfond", cat: "sweden", m3: 8.2, m6: 12.5, m12: 16.8, y5: 12.6},
-            {name: "Länsförsäkringar Sverige Vision A", cat: "sweden", m3: 7.0, m6: 13.1, m12: 16.2, y5: 10.9},
-            {name: "Öhman Emerging Markets A", cat: "emerging", m3: 3.3, m6: 13.6, m12: 15.9, y5: 4.5},
-            {name: "Länsförsäkringar Tillväxtmarknad Aktiv A", cat: "emerging", m3: 4.8, m6: 14.2, m12: 15.4, y5: 3.8},
-            {name: "Goldman Sachs Asia Equity Income P", cat: "emerging", m3: 3.3, m6: 16.9, m12: 15.0, y5: 5.5},
-            {name: "Handelsbanken Sverige LM Index (A1 SEK)", cat: "sweden", m3: 7.3, m6: 12.6, m12: 14.9, y5: null}
-        ];
+        (function() {
+            'use strict';
 
-        let currentChart = null;
-        let currentPeriod = '12m';
-        let modalChart = null;
-        let comparisonChart = null;
-        let selectedFunds = new Set();
-        let activeCategory = 'all';
-
-        function getCategoryColor(cat) {
-            const colors = {
-                'biotech': '#4361ee',
-                'health': '#4361ee',
-                'gold': '#52b788',
-                'sweden': '#f77f00',
-                'emerging': '#9d4edd',
-                'global': '#6b6b6b',
-                'bond': '#0077b6'
+            // Application state - encapsulated in IIFE
+            const state = {
+                fundData: [
+                    {name: "CPR Invest Global Gold Mines A2", cat: "gold", m3: 12.6, m6: 61.4, m12: 116.9, y5: 22.1},
+                    {name: "BlackRock - World Gold A2", cat: "gold", m3: 15.4, m6: 63.4, m12: 116.7, y5: 21.0},
+                    {name: "Allianz Global Metals and Mining A", cat: "gold", m3: 13.2, m6: 43.5, m12: 47.4, y5: 14.8},
+                    {name: "BlackRock - World Mining A2", cat: "gold", m3: 12.1, m6: 43.0, m12: 42.7, y5: 14.7},
+                    {name: "Franklin Biotechnology Discovery Fund", cat: "biotech", m3: 20.0, m6: 54.5, m12: 27.6, y5: 8.1},
+                    {name: "Baring Latin America A", cat: "emerging", m3: 5.8, m6: 13.9, m12: 27.3, y5: 9.7},
+                    {name: "Handelsbanken Latinamerika Impact Tema A1", cat: "emerging", m3: 3.7, m6: 9.4, m12: 27.1, y5: 8.1},
+                    {name: "Amundi Funds Latin America Equity A2", cat: "emerging", m3: 3.5, m6: 9.6, m12: 27.1, y5: 10.7},
+                    {name: "Pictet Biotech R", cat: "biotech", m3: 19.3, m6: 52.8, m12: 25.9, y5: 6.8},
+                    {name: "SEB Sverigefond", cat: "sweden", m3: 8.5, m6: 15.8, m12: 23.3, y5: 12.5},
+                    {name: "Evli Finland Select Placeringsfonden B", cat: "sweden", m3: 7.8, m6: 11.3, m12: 22.7, y5: 7.9},
+                    {name: "Handelsbanken Hållbar Energi A1", cat: "global", m3: 6.8, m6: 31.4, m12: 22.4, y5: -2.4},
+                    {name: "BlackRock - World Financials A2", cat: "global", m3: 8.6, m6: 13.5, m12: 22.2, y5: 20.4},
+                    {name: "S-Banken Fenno Aktie A", cat: "sweden", m3: 8.1, m6: 9.7, m12: 21.6, y5: 7.5},
+                    {name: "Aktiespararna Direktavkastning", cat: "sweden", m3: 6.5, m6: 12.1, m12: 21.3, y5: 10.6},
+                    {name: "SKAGEN Kon-Tiki F", cat: "emerging", m3: 5.2, m6: 14.3, m12: 21.2, y5: 7.3},
+                    {name: "Aktia Capital Placeringsfond B", cat: "sweden", m3: 7.9, m6: 10.7, m12: 20.8, y5: 5.8},
+                    {name: "Holberg Norge", cat: "sweden", m3: 4.1, m6: 7.7, m12: 20.4, y5: 13.8},
+                    {name: "Lannebo Sverige Plus", cat: "sweden", m3: 10.7, m6: 18.4, m12: 20.3, y5: 12.4},
+                    {name: "Avanza Zero", cat: "sweden", m3: 7.2, m6: 16.9, m12: 20.2, y5: 12.3},
+                    {name: "Lannebo Sverige", cat: "sweden", m3: 10.5, m6: 16.6, m12: 19.9, y5: 12.1},
+                    {name: "Templeton Emerging Markets Fund A", cat: "emerging", m3: 3.4, m6: 14.6, m12: 19.6, y5: 7.1},
+                    {name: "Nordea Globala Tillväxtmarknader", cat: "emerging", m3: 6.4, m6: 17.0, m12: 18.8, y5: 8.5},
+                    {name: "Aktiespararna Topp Sverige", cat: "sweden", m3: 8.8, m6: 18.0, m12: 18.8, y5: 12.0},
+                    {name: "SEB Nordenfond", cat: "sweden", m3: 8.2, m6: 12.5, m12: 16.8, y5: 12.6},
+                    {name: "Länsförsäkringar Sverige Vision A", cat: "sweden", m3: 7.0, m6: 13.1, m12: 16.2, y5: 10.9},
+                    {name: "Öhman Emerging Markets A", cat: "emerging", m3: 3.3, m6: 13.6, m12: 15.9, y5: 4.5},
+                    {name: "Länsförsäkringar Tillväxtmarknad Aktiv A", cat: "emerging", m3: 4.8, m6: 14.2, m12: 15.4, y5: 3.8},
+                    {name: "Goldman Sachs Asia Equity Income P", cat: "emerging", m3: 3.3, m6: 16.9, m12: 15.0, y5: 5.5},
+                    {name: "Handelsbanken Sverige LM Index (A1 SEK)", cat: "sweden", m3: 7.3, m6: 12.6, m12: 14.9, y5: null}
+                ],
+                currentChart: null,
+                currentPeriod: '12m',
+                modalChart: null,
+                comparisonChart: null,
+                selectedFunds: new Set(),
+                activeCategory: 'all'
             };
-            return colors[cat] || '#6b6b6b';
-        }
 
-        function getCategoryName(cat) {
-            const names = {
-                'biotech': 'Bioteknik',
-                'health': 'Hälsa',
-                'gold': 'Guld/Råvaror',
-                'sweden': 'Sverige',
-                'emerging': 'Tillväxtmarknader',
-                'global': 'Global',
-                'bond': 'Räntefonder'
-            };
-            return names[cat] || 'Övrigt';
-        }
+            // Utility functions
+            function showToast(message, type = 'info') {
+                const existingToast = document.querySelector('.toast');
+                if (existingToast) {
+                    existingToast.remove();
+                }
 
-        function formatValue(value) {
-            if (value === null || value === undefined) {
-                return null;
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                toast.textContent = message;
+                document.body.appendChild(toast);
+
+                // Trigger animation
+                setTimeout(() => toast.classList.add('show'), 10);
+
+                // Auto-hide after 3 seconds
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000);
             }
-            return value.toFixed(1);
-        }
 
-        function renderPerformanceCell(value) {
-            if (value === null || value === undefined) {
-                return '<span class="unavailable">N/A</span>';
+            function getCategoryColor(cat) {
+                const colors = {
+                    'biotech': '#4361ee',
+                    'health': '#4361ee',
+                    'gold': '#52b788',
+                    'sweden': '#f77f00',
+                    'emerging': '#9d4edd',
+                    'global': '#6b6b6b',
+                    'bond': '#0077b6'
+                };
+                return colors[cat] || '#6b6b6b';
             }
-            const className = value >= 0 ? 'positive' : 'negative';
-            return `<span class="performance ${className}">${value.toFixed(1)}%</span>`;
-        }
 
-        // Feature 1: Filter functions
-        function filterTable() {
-            const searchTerm = document.getElementById('fundSearch').value.toLowerCase();
-            const rows = document.querySelectorAll('#fundTableBody tr');
-            let visibleCount = 0;
+            function getCategoryName(cat) {
+                const names = {
+                    'biotech': 'Bioteknik',
+                    'health': 'Hälsa',
+                    'gold': 'Guld/Råvaror',
+                    'sweden': 'Sverige',
+                    'emerging': 'Tillväxtmarknader',
+                    'global': 'Global',
+                    'bond': 'Räntefonder'
+                };
+                return names[cat] || 'Övrigt';
+            }
 
-            rows.forEach(row => {
-                const fundName = row.querySelector('.fund-name').textContent.toLowerCase();
-                const category = row.dataset.category;
-                const matchesSearch = fundName.includes(searchTerm);
-                const matchesCategory = activeCategory === 'all' || category === activeCategory;
-                
-                if (matchesSearch && matchesCategory) {
-                    row.style.display = '';
-                    visibleCount++;
+            function formatValue(value) {
+                if (value === null || value === undefined) {
+                    return null;
+                }
+                return value.toFixed(1);
+            }
+
+            // Safe DOM creation for performance cell
+            function createPerformanceCell(value) {
+                const span = document.createElement('span');
+                if (value === null || value === undefined) {
+                    span.className = 'unavailable';
+                    span.textContent = 'N/A';
                 } else {
-                    row.style.display = 'none';
+                    span.className = `performance ${value >= 0 ? 'positive' : 'negative'}`;
+                    span.textContent = value.toFixed(1) + '%';
                 }
-            });
+                return span;
+            }
 
-            document.getElementById('noResults').style.display = visibleCount === 0 ? 'block' : 'none';
-        }
+            // Filter functions
+            function filterTable() {
+                const searchTerm = document.getElementById('fundSearch').value.toLowerCase();
+                const rows = document.querySelectorAll('#fundTableBody tr');
+                let visibleCount = 0;
 
-        function filterByCategory(category, btn) {
-            activeCategory = category;
-            document.querySelectorAll('.category-filter-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            filterTable();
-        }
+                rows.forEach(row => {
+                    const fundName = row.querySelector('.fund-name').textContent.toLowerCase();
+                    const category = row.dataset.category;
+                    const matchesSearch = fundName.includes(searchTerm);
+                    const matchesCategory = state.activeCategory === 'all' || category === state.activeCategory;
 
-        // Feature 3: Comparison functions
-        function toggleCompare(fundName, checkbox) {
-            if (checkbox.checked) {
-                if (selectedFunds.size >= 5) {
-                    checkbox.checked = false;
-                    alert('Du kan max välja 5 fonder för jämförelse');
-                    return;
+                    if (matchesSearch && matchesCategory) {
+                        row.style.display = '';
+                        visibleCount++;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+
+                document.getElementById('noResults').style.display = visibleCount === 0 ? 'block' : 'none';
+            }
+
+            function filterByCategory(category) {
+                state.activeCategory = category;
+                document.querySelectorAll('.category-filter-btn').forEach(b => b.classList.remove('active'));
+                const activeBtn = document.querySelector(`[data-category="${category}"]`);
+                if (activeBtn) activeBtn.classList.add('active');
+                filterTable();
+            }
+
+            // Comparison functions
+            function toggleCompare(fundName, checkbox) {
+                if (checkbox.checked) {
+                    if (state.selectedFunds.size >= 5) {
+                        checkbox.checked = false;
+                        showToast('Du kan max välja 5 fonder för jämförelse', 'warning');
+                        return;
+                    }
+                    state.selectedFunds.add(fundName);
+                } else {
+                    state.selectedFunds.delete(fundName);
                 }
-                selectedFunds.add(fundName);
-            } else {
-                selectedFunds.delete(fundName);
+                updateComparisonBar();
             }
-            updateComparisonBar();
-        }
 
-        function updateComparisonBar() {
-            const bar = document.getElementById('comparisonBar');
-            const count = document.getElementById('comparisonCount');
-            count.textContent = selectedFunds.size;
-            
-            if (selectedFunds.size >= 2) {
-                bar.classList.add('visible');
-            } else {
-                bar.classList.remove('visible');
+            function updateComparisonBar() {
+                const bar = document.getElementById('comparisonBar');
+                const count = document.getElementById('comparisonCount');
+                count.textContent = state.selectedFunds.size;
+
+                if (state.selectedFunds.size >= 2) {
+                    bar.classList.add('visible');
+                } else {
+                    bar.classList.remove('visible');
+                }
             }
-        }
 
-        function clearComparison() {
-            selectedFunds.clear();
-            document.querySelectorAll('.compare-checkbox').forEach(cb => cb.checked = false);
-            updateComparisonBar();
-        }
+            function clearComparison() {
+                state.selectedFunds.clear();
+                document.querySelectorAll('.compare-checkbox').forEach(cb => cb.checked = false);
+                updateComparisonBar();
+            }
 
-        function showComparison() {
-            const funds = fundData.filter(f => selectedFunds.has(f.name));
+            function showComparison() {
+                const funds = state.fundData.filter(f => state.selectedFunds.has(f.name));
             
             document.getElementById('comparisonSubtitle').textContent = 
                 `${funds.length} fonder valda`;
 
-            // Build comparison table
+            // Build comparison table safely - no XSS vulnerabilities
             const table = document.getElementById('comparisonTable');
-            table.innerHTML = `
-                <thead>
-                    <tr>
-                        <th>Mått</th>
-                        ${funds.map(f => `<th>${f.name.split(' ').slice(0, 2).join(' ')}</th>`).join('')}
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>3 månader</td>
-                        ${funds.map(f => `<td>${renderPerformanceCell(f.m3)}</td>`).join('')}
-                    </tr>
-                    <tr>
-                        <td>6 månader</td>
-                        ${funds.map(f => `<td>${renderPerformanceCell(f.m6)}</td>`).join('')}
-                    </tr>
-                    <tr>
-                        <td>12 månader</td>
-                        ${funds.map(f => `<td>${renderPerformanceCell(f.m12)}</td>`).join('')}
-                    </tr>
-                    <tr>
-                        <td>5 år (snitt)</td>
-                        ${funds.map(f => `<td>${renderPerformanceCell(f.y5)}</td>`).join('')}
-                    </tr>
-                    <tr>
-                        <td>Kategori</td>
-                        ${funds.map(f => `<td><span class="category-badge category-${f.cat}">${getCategoryName(f.cat)}</span></td>`).join('')}
-                    </tr>
-                </tbody>
-            `;
+            table.innerHTML = ''; // Clear existing content
+
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            const measureTh = document.createElement('th');
+            measureTh.textContent = 'Mått';
+            headerRow.appendChild(measureTh);
+
+            funds.forEach(f => {
+                const th = document.createElement('th');
+                th.textContent = f.name.split(' ').slice(0, 2).join(' ');
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+
+            // 3 months row
+            const row3m = document.createElement('tr');
+            const td3m = document.createElement('td');
+            td3m.textContent = '3 månader';
+            row3m.appendChild(td3m);
+            funds.forEach(f => {
+                const td = document.createElement('td');
+                td.appendChild(createPerformanceCell(f.m3));
+                row3m.appendChild(td);
+            });
+            tbody.appendChild(row3m);
+
+            // 6 months row
+            const row6m = document.createElement('tr');
+            const td6m = document.createElement('td');
+            td6m.textContent = '6 månader';
+            row6m.appendChild(td6m);
+            funds.forEach(f => {
+                const td = document.createElement('td');
+                td.appendChild(createPerformanceCell(f.m6));
+                row6m.appendChild(td);
+            });
+            tbody.appendChild(row6m);
+
+            // 12 months row
+            const row12m = document.createElement('tr');
+            const td12m = document.createElement('td');
+            td12m.textContent = '12 månader';
+            row12m.appendChild(td12m);
+            funds.forEach(f => {
+                const td = document.createElement('td');
+                td.appendChild(createPerformanceCell(f.m12));
+                row12m.appendChild(td);
+            });
+            tbody.appendChild(row12m);
+
+            // 5 year row
+            const row5y = document.createElement('tr');
+            const td5y = document.createElement('td');
+            td5y.textContent = '5 år (snitt)';
+            row5y.appendChild(td5y);
+            funds.forEach(f => {
+                const td = document.createElement('td');
+                td.appendChild(createPerformanceCell(f.y5));
+                row5y.appendChild(td);
+            });
+            tbody.appendChild(row5y);
+
+            // Category row
+            const rowCat = document.createElement('tr');
+            const tdCat = document.createElement('td');
+            tdCat.textContent = 'Kategori';
+            rowCat.appendChild(tdCat);
+            funds.forEach(f => {
+                const td = document.createElement('td');
+                const badge = document.createElement('span');
+                badge.className = `category-badge category-${f.cat}`;
+                badge.textContent = getCategoryName(f.cat);
+                td.appendChild(badge);
+                rowCat.appendChild(td);
+            });
+            tbody.appendChild(rowCat);
+
+            table.appendChild(tbody);
 
             // Build comparison chart
-            if (comparisonChart) {
-                comparisonChart.destroy();
+            if (state.comparisonChart) {
+                state.comparisonChart.destroy();
             }
 
             const ctx = document.getElementById('comparisonChart').getContext('2d');
-            comparisonChart = new Chart(ctx, {
+            state.comparisonChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: ['3 mån', '6 mån', '12 mån', '5 år'],
@@ -1177,77 +1303,91 @@
             });
 
             document.getElementById('comparisonModal').classList.add('visible');
-        }
+            }
 
-        function closeComparisonModal(event) {
-            if (!event || event.target === document.getElementById('comparisonModal')) {
+            function closeComparisonModal() {
                 document.getElementById('comparisonModal').classList.remove('visible');
             }
-        }
 
-        // Feature 5: Modal functions
-        function openFundModal(fundName) {
-            const fund = fundData.find(f => f.name === fundName);
+            // Modal functions
+            function openFundModal(fundName) {
+                const fund = state.fundData.find(f => f.name === fundName);
             if (!fund) return;
 
-            document.getElementById('modalFundName').textContent = fund.name;
-            document.getElementById('modalCategory').textContent = getCategoryName(fund.cat);
+                document.getElementById('modalFundName').textContent = fund.name;
+                document.getElementById('modalCategory').textContent = getCategoryName(fund.cat);
 
-            // Stats
-            document.getElementById('modalStats').innerHTML = `
-                <div class="modal-stat">
-                    <div class="modal-stat-label">3 månader</div>
-                    <div class="modal-stat-value" style="color: ${fund.m3 >= 0 ? 'var(--success)' : 'var(--danger)'}">
-                        ${fund.m3 !== null ? fund.m3.toFixed(1) + '%' : 'N/A'}
-                    </div>
-                </div>
-                <div class="modal-stat">
-                    <div class="modal-stat-label">6 månader</div>
-                    <div class="modal-stat-value" style="color: ${fund.m6 >= 0 ? 'var(--success)' : 'var(--danger)'}">
-                        ${fund.m6 !== null ? fund.m6.toFixed(1) + '%' : 'N/A'}
-                    </div>
-                </div>
-                <div class="modal-stat">
-                    <div class="modal-stat-label">12 månader</div>
-                    <div class="modal-stat-value" style="color: ${fund.m12 >= 0 ? 'var(--success)' : 'var(--danger)'}">
-                        ${fund.m12 !== null ? fund.m12.toFixed(1) + '%' : 'N/A'}
-                    </div>
-                </div>
-                <div class="modal-stat">
-                    <div class="modal-stat-label">5 år snitt</div>
-                    <div class="modal-stat-value" style="color: ${fund.y5 !== null ? (fund.y5 >= 0 ? 'var(--success)' : 'var(--danger)') : 'var(--text-muted)'}">
-                        ${fund.y5 !== null ? fund.y5.toFixed(1) + '%' : 'N/A'}
-                    </div>
-                </div>
-            `;
+                // Stats - safe DOM manipulation
+                const modalStats = document.getElementById('modalStats');
+                modalStats.innerHTML = '';
 
-            // Info grid
-            document.getElementById('modalInfo').innerHTML = `
-                <div class="modal-info-item">
-                    <span class="modal-info-label">Kategori</span>
-                    <span class="modal-info-value">${getCategoryName(fund.cat)}</span>
-                </div>
-                <div class="modal-info-item">
-                    <span class="modal-info-label">Typ</span>
-                    <span class="modal-info-value">Aktiefond</span>
-                </div>
-                <div class="modal-info-item">
-                    <span class="modal-info-label">Risknivå</span>
-                    <span class="modal-info-value">${fund.cat === 'bond' ? 'Låg' : fund.cat === 'gold' || fund.cat === 'biotech' ? 'Hög' : 'Medel-Hög'}</span>
-                </div>
-                <div class="modal-info-item">
-                    <span class="modal-info-label">Ranking (12m)</span>
-                    <span class="modal-info-value">#${fundData.sort((a,b) => b.m12 - a.m12).findIndex(f => f.name === fund.name) + 1} av 30</span>
-                </div>
-            `;
+                function createModalStat(label, value, isPositive) {
+                    const stat = document.createElement('div');
+                    stat.className = 'modal-stat';
 
-            // Modal chart
-            if (modalChart) {
-                modalChart.destroy();
-            }
+                    const statLabel = document.createElement('div');
+                    statLabel.className = 'modal-stat-label';
+                    statLabel.textContent = label;
+                    stat.appendChild(statLabel);
 
-            const ctx = document.getElementById('modalChart').getContext('2d');
-            modalChart = new Chart(ctx, {
+                    const statValue = document.createElement('div');
+                    statValue.className = 'modal-stat-value';
+                    if (value !== null && value !== undefined) {
+                        statValue.style.color = isPositive(value) ? 'var(--success)' : 'var(--danger)';
+                        statValue.textContent = value.toFixed(1) + '%';
+                    } else {
+                        statValue.style.color = 'var(--text-muted)';
+                        statValue.textContent = 'N/A';
+                    }
+                    stat.appendChild(statValue);
+
+                    return stat;
+                }
+
+                modalStats.appendChild(createModalStat('3 månader', fund.m3, v => v >= 0));
+                modalStats.appendChild(createModalStat('6 månader', fund.m6, v => v >= 0));
+                modalStats.appendChild(createModalStat('12 månader', fund.m12, v => v >= 0));
+                modalStats.appendChild(createModalStat('5 år snitt', fund.y5, v => v >= 0));
+
+                // Info grid - safe DOM manipulation
+                const modalInfo = document.getElementById('modalInfo');
+                modalInfo.innerHTML = '';
+
+                function createInfoItem(label, value) {
+                    const item = document.createElement('div');
+                    item.className = 'modal-info-item';
+
+                    const labelSpan = document.createElement('span');
+                    labelSpan.className = 'modal-info-label';
+                    labelSpan.textContent = label;
+                    item.appendChild(labelSpan);
+
+                    const valueSpan = document.createElement('span');
+                    valueSpan.className = 'modal-info-value';
+                    valueSpan.textContent = value;
+                    item.appendChild(valueSpan);
+
+                    return item;
+                }
+
+                modalInfo.appendChild(createInfoItem('Kategori', getCategoryName(fund.cat)));
+                modalInfo.appendChild(createInfoItem('Typ', 'Aktiefond'));
+
+                const riskLevel = fund.cat === 'bond' ? 'Låg' :
+                                 (fund.cat === 'gold' || fund.cat === 'biotech' ? 'Hög' : 'Medel-Hög');
+                modalInfo.appendChild(createInfoItem('Risknivå', riskLevel));
+
+                const sortedFunds = [...state.fundData].sort((a,b) => (b.m12 || 0) - (a.m12 || 0));
+                const ranking = sortedFunds.findIndex(f => f.name === fund.name) + 1;
+                modalInfo.appendChild(createInfoItem('Ranking (12m)', `#${ranking} av 30`));
+
+                // Modal chart
+                if (state.modalChart) {
+                    state.modalChart.destroy();
+                }
+
+                const ctx = document.getElementById('modalChart').getContext('2d');
+                state.modalChart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: ['3 mån', '6 mån', '12 mån', '5 år'],
@@ -1279,44 +1419,37 @@
                 }
             });
 
-            document.getElementById('fundModal').classList.add('visible');
-        }
-
-        function closeFundModal() {
-            document.getElementById('fundModal').classList.remove('visible');
-        }
-
-        function closeModal(event) {
-            if (event.target === document.getElementById('fundModal')) {
-                closeFundModal();
+                document.getElementById('fundModal').classList.add('visible');
             }
-        }
 
-        function updatePeriod(period, event) {
-            currentPeriod = period;
-            document.querySelectorAll('.chart-section:first-of-type .filter-btn').forEach(btn => btn.classList.remove('active'));
-            if (event && event.target) {
-                event.target.classList.add('active');
+            function closeFundModal() {
+                document.getElementById('fundModal').classList.remove('visible');
             }
+
+            function updatePeriod(period) {
+                state.currentPeriod = period;
+                document.querySelectorAll('.chart-section:first-of-type .filter-btn').forEach(btn => btn.classList.remove('active'));
+                const activeBtn = document.querySelector(`[data-period="${period}"]`);
+                if (activeBtn) activeBtn.classList.add('active');
             
-            const periodMap = {
-                '3m': 'm3',
-                '6m': 'm6',
-                '12m': 'm12',
-                '5y': 'y5'
-            };
-            
-            const sortedData = [...fundData]
-                .filter(f => f[periodMap[period]] !== null)
-                .sort((a, b) => b[periodMap[period]] - a[periodMap[period]])
-                .slice(0, 30);
-            
-            if (currentChart) {
-                currentChart.destroy();
-            }
-            
-            const ctx = document.getElementById('topPerformersChart').getContext('2d');
-            currentChart = new Chart(ctx, {
+                const periodMap = {
+                    '3m': 'm3',
+                    '6m': 'm6',
+                    '12m': 'm12',
+                    '5y': 'y5'
+                };
+
+                const sortedData = [...state.fundData]
+                    .filter(f => f[periodMap[period]] !== null)
+                    .sort((a, b) => b[periodMap[period]] - a[periodMap[period]])
+                    .slice(0, 30);
+
+                if (state.currentChart) {
+                    state.currentChart.destroy();
+                }
+
+                const ctx = document.getElementById('topPerformersChart').getContext('2d');
+                state.currentChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: sortedData.map(f => f.name),
@@ -1361,21 +1494,81 @@
                         }
                     }
                 }
-            });
-        }
-
-        // Initialize everything on DOM load
-        window.addEventListener('DOMContentLoaded', function() {
-            // Initialize top performers chart
-            const firstBtn = document.querySelector('.filter-btn.active');
-            if (firstBtn) {
-                updatePeriod('12m', { target: firstBtn });
+                });
             }
 
-            // Risk-Return Scatter Chart
-            const riskReturnCtx = document.getElementById('riskReturnChart').getContext('2d');
-            
-            const validFundsForScatter = fundData.filter(fund => 
+            // Event delegation for table rows - safer and more efficient
+            document.addEventListener('click', function(e) {
+                // Handle table row clicks for fund modal
+                const row = e.target.closest('#fundTableBody tr');
+                if (row && !e.target.closest('.compare-checkbox')) {
+                    const fundName = row.dataset.fundName;
+                    if (fundName) openFundModal(fundName);
+                }
+
+                // Handle checkbox clicks for comparison
+                if (e.target.classList.contains('compare-checkbox')) {
+                    const row = e.target.closest('tr');
+                    if (row) {
+                        const fundName = row.dataset.fundName;
+                        toggleCompare(fundName, e.target);
+                    }
+                }
+
+                // Handle period filter buttons
+                const periodBtn = e.target.closest('[data-period]');
+                if (periodBtn) {
+                    const period = periodBtn.dataset.period;
+                    updatePeriod(period);
+                }
+
+                // Handle category filter buttons
+                const categoryBtn = e.target.closest('[data-category]');
+                if (categoryBtn && categoryBtn.classList.contains('category-filter-btn')) {
+                    const category = categoryBtn.dataset.category;
+                    filterByCategory(category);
+                }
+
+                // Handle modal close buttons
+                if (e.target.id === 'closeFundModalBtn' || e.target.closest('#closeFundModalBtn')) {
+                    closeFundModal();
+                }
+
+                if (e.target.id === 'closeComparisonModalBtn' || e.target.closest('#closeComparisonModalBtn')) {
+                    closeComparisonModal();
+                }
+
+                // Handle comparison bar buttons
+                if (e.target.id === 'clearComparisonBtn' || e.target.closest('#clearComparisonBtn')) {
+                    clearComparison();
+                }
+
+                if (e.target.id === 'showComparisonBtn' || e.target.closest('#showComparisonBtn')) {
+                    showComparison();
+                }
+
+                // Close modals when clicking overlay
+                if (e.target.id === 'fundModal') {
+                    closeFundModal();
+                }
+
+                if (e.target.id === 'comparisonModal') {
+                    closeComparisonModal();
+                }
+            });
+
+            // Event listener for search input
+            document.getElementById('fundSearch').addEventListener('input', filterTable);
+
+            // Initialize everything on DOM load
+            window.addEventListener('DOMContentLoaded', function() {
+                // Initialize top performers chart
+                updatePeriod('12m');
+
+                // Risk-Return Scatter Chart
+                const riskReturnCtx = document.getElementById('riskReturnChart').getContext('2d');
+
+                const validFundsForScatter = state.fundData.filter(fund => 
                 fund.m3 !== null && fund.m3 !== undefined &&
                 fund.m6 !== null && fund.m6 !== undefined &&
                 fund.m12 !== null && fund.m12 !== undefined &&
@@ -1443,13 +1636,13 @@
                 }
             });
 
-            // Time Comparison Chart
-            const timeCtx = document.getElementById('timeComparisonChart').getContext('2d');
-            
-            const topFunds = [...fundData]
-                .filter(f => f.y5 !== null && f.m12 !== null)
-                .sort((a, b) => b.m12 - a.m12)
-                .slice(0, 5);
+                // Time Comparison Chart
+                const timeCtx = document.getElementById('timeComparisonChart').getContext('2d');
+
+                const topFunds = [...state.fundData]
+                    .filter(f => f.y5 !== null && f.m12 !== null)
+                    .sort((a, b) => b.m12 - a.m12)
+                    .slice(0, 5);
 
             new Chart(timeCtx, {
                 type: 'line',
@@ -1512,60 +1705,84 @@
                 }
             });
 
-            // Populate table with category grouping (Design 5)
-            const tableBody = document.getElementById('fundTableBody');
-            
-            // Sort by category first, then by m12
-            const sortedByCategory = [...fundData].sort((a, b) => {
-                if (a.cat !== b.cat) {
-                    return a.cat.localeCompare(b.cat);
-                }
-                if (a.m12 === null) return 1;
-                if (b.m12 === null) return -1;
-                return b.m12 - a.m12;
+                // Populate table with category grouping - SAFE DOM manipulation
+                const tableBody = document.getElementById('fundTableBody');
+
+                // Sort by category first, then by m12
+                const sortedByCategory = [...state.fundData].sort((a, b) => {
+                    if (a.cat !== b.cat) {
+                        return a.cat.localeCompare(b.cat);
+                    }
+                    if (a.m12 === null) return 1;
+                    if (b.m12 === null) return -1;
+                    return b.m12 - a.m12;
+                });
+
+                let lastCategory = null;
+
+                sortedByCategory.forEach((fund, index) => {
+                    const row = document.createElement('tr');
+                    row.dataset.category = fund.cat;
+                    row.dataset.fundName = fund.name;
+
+                    // Design 5: Add visual grouping class
+                    if (fund.cat !== lastCategory) {
+                        row.classList.add('category-group-start');
+                        lastCategory = fund.cat;
+                    }
+
+                    // Checkbox cell - safe creation
+                    const checkboxTd = document.createElement('td');
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.className = 'compare-checkbox';
+                    checkboxTd.appendChild(checkbox);
+                    row.appendChild(checkboxTd);
+
+                    // Fund name cell - textContent prevents XSS
+                    const nameTd = document.createElement('td');
+                    nameTd.className = 'fund-name';
+                    nameTd.textContent = fund.name;
+                    row.appendChild(nameTd);
+
+                    // Category cell
+                    const categoryTd = document.createElement('td');
+                    const badge = document.createElement('span');
+                    badge.className = `category-badge category-${fund.cat}`;
+                    badge.textContent = getCategoryName(fund.cat);
+                    categoryTd.appendChild(badge);
+                    row.appendChild(categoryTd);
+
+                    // Performance cells - safe DOM creation
+                    const m3Td = document.createElement('td');
+                    m3Td.appendChild(createPerformanceCell(fund.m3));
+                    row.appendChild(m3Td);
+
+                    const m6Td = document.createElement('td');
+                    m6Td.appendChild(createPerformanceCell(fund.m6));
+                    row.appendChild(m6Td);
+
+                    const m12Td = document.createElement('td');
+                    m12Td.appendChild(createPerformanceCell(fund.m12));
+                    row.appendChild(m12Td);
+
+                    const y5Td = document.createElement('td');
+                    y5Td.appendChild(createPerformanceCell(fund.y5));
+                    row.appendChild(y5Td);
+
+                    tableBody.appendChild(row);
+                });
             });
 
-            let lastCategory = null;
-            
-            sortedByCategory.forEach((fund, index) => {
-                const row = document.createElement('tr');
-                row.dataset.category = fund.cat;
-                row.dataset.fundName = fund.name;
-                
-                // Design 5: Add visual grouping class
-                if (fund.cat !== lastCategory) {
-                    row.classList.add('category-group-start');
-                    lastCategory = fund.cat;
+            // Keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeFundModal();
+                    closeComparisonModal();
                 }
-
-                row.innerHTML = `
-                    <td>
-                        <input type="checkbox" class="compare-checkbox" 
-                            onchange="toggleCompare('${fund.name}', this)"
-                            onclick="event.stopPropagation()">
-                    </td>
-                    <td class="fund-name">${fund.name}</td>
-                    <td><span class="category-badge category-${fund.cat}">${getCategoryName(fund.cat)}</span></td>
-                    <td>${renderPerformanceCell(fund.m3)}</td>
-                    <td>${renderPerformanceCell(fund.m6)}</td>
-                    <td>${renderPerformanceCell(fund.m12)}</td>
-                    <td>${renderPerformanceCell(fund.y5)}</td>
-                `;
-                
-                // Feature 5: Click to open modal
-                row.addEventListener('click', () => openFundModal(fund.name));
-                
-                tableBody.appendChild(row);
             });
-        });
 
-        // Keyboard shortcuts
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                closeFundModal();
-                closeComparisonModal();
-            }
-        });
+        })(); // End of IIFE
     </script>
 </body>
 </html>
